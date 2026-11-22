@@ -3,8 +3,8 @@
  *
  * 只做参数校验与 DTO 投影；授权、落账本与投影成行都在应用服务里完成。
  *
- * 参数刻意保持最少：看护「期间做什么」由核心机制决定，而机制尚未定下来，
- * 因此这里不暴露续跑提示词、续跑次数之类的旋钮——它们属于机制，不属于登记。
+ * 参数刻意保持最少：登记只回答「哪个会话、为了什么」。看护期间做什么由别的
+ * 能力负责，本工具不暴露续跑提示词、次数上限之类的旋钮。
  *
  * @module session-guardian/interfaces/tools/watch
  */
@@ -23,8 +23,8 @@ export function createWatchTool(service: GuardianService): ToolDefinition {
   return {
     name: 'watch_session',
     description:
-      'Put a session under guardian watch, so this plugin keeps checking on it while long work runs. Use it when a '
-      + 'task may take many turns: register the session, let the guardian do its job, and check on it later with '
+      'Put a session under guardian watch, so it is recorded outside the session and stays discoverable while long '
+      + 'work runs. Use it when a task may take many turns: register the session, then find it later with '
       + 'list_watched_sessions. Watching your own session is always allowed; watching a session in another working '
       + 'directory needs the deployment to allow cross-workspace watching. Calling it again on the same session '
       + 'updates the existing watch instead of failing.',

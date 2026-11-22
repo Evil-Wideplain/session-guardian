@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Context trim",
+    "description": "Keep the most recent rounds when you return to an old session, replacing older history with a checkpoint."
+  }
+}

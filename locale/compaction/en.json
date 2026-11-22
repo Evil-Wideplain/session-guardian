@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Retrieval compaction",
+    "description": "Replace the model summary with a fixed notice and retrieval pointers, and decide how tool exchanges in the retained window are handled."
+  }
+}

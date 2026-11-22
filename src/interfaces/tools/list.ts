@@ -1,8 +1,8 @@
 /**
  * `list_watched_sessions` 模型工具：列出调用方可见的被看护会话。
  *
- * 每一行给出看护状态、会话是否在线、已心跳/已动作次数与最近一次时间，
- * 用来回答「我登记的那些长任务现在到哪一步了」。
+ * 每一行给出看护状态、会话是否在线、登记时刻与备注，用来回答「我登记过的
+ * 那些长任务还能不能找回来」。
  *
  * @module session-guardian/interfaces/tools/list
  */
@@ -10,7 +10,7 @@
 import type { GuardianService } from '../../application/guardian-service.ts'
 import type { ListResult, WatchRow } from '../../application/dto.ts'
 import type { ToolDefinition } from '../../types.ts'
-import { asObject, callerOf, clockText, inlineText, rejectUnknown } from './shared.ts'
+import { asObject, callerOf, inlineText, rejectUnknown, timestampText } from './shared.ts'
 
 /**
  * 构造 `list_watched_sessions` 工具。
@@ -22,9 +22,8 @@ export function createListTool(service: GuardianService): ToolDefinition {
     name: 'list_watched_sessions',
     description:
       'List the sessions under guardian watch, oldest watch first. Each row carries the session id, the watch state '
-      + '(watching, paused or stopped), whether the session is online and busy, how many heartbeats the watch has '
-      + 'taken, how many times the guardian acted on it, and the last heartbeat and action times. Sessions you may '
-      + 'not watch are counted in `omitted` instead of being listed.',
+      + '(watching, paused or stopped), whether the session is online and busy, when it was registered, and the note '
+      + 'given at registration. Sessions you may not watch are counted in `omitted` instead of being listed.',
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -46,10 +45,7 @@ export function createListTool(service: GuardianService): ToolDefinition {
                 state: { type: 'string', enum: ['watching', 'paused', 'stopped'] },
                 online: { type: 'boolean' },
                 agent_status: { type: 'string', enum: ['idle', 'running', 'offline'] },
-                heartbeat_count: { type: 'integer' },
-                action_count: { type: 'integer' },
-                last_heartbeat_at: { type: 'integer' },
-                last_action_at: { type: 'integer' },
+                created_at: { type: 'integer' },
                 note: { type: 'string' },
               },
               required: [
@@ -58,8 +54,7 @@ export function createListTool(service: GuardianService): ToolDefinition {
                 'state',
                 'online',
                 'agent_status',
-                'heartbeat_count',
-                'action_count',
+                'created_at',
               ],
             },
           },
@@ -74,12 +69,8 @@ export function createListTool(service: GuardianService): ToolDefinition {
         }
         const lines = result.rows.map((row: WatchRow) => {
           const note = row.note === undefined || row.note.trim() === '' ? '' : `，备注：${inlineText(row.note, 80)}`
-          const last = row.lastActionAt === undefined
-            ? '尚未动作'
-            : `最近动作 ${clockText(row.lastActionAt)}`
           return `- ${inlineText(row.shortId)}（id: ${inlineText(row.sessionId)}，state: ${inlineText(row.state)}，`
-            + `agent: ${inlineText(row.agentStatus)}，心跳 ${row.heartbeatCount} 次，`
-            + `动作 ${row.actionCount} 次，${last}${note}）`
+            + `agent: ${inlineText(row.agentStatus)}，登记于 ${timestampText(row.createdAt)}${note}）`
         })
         const hidden = result.omitted > 0 ? `（另有 ${result.omitted} 个会话对你不可见）` : ''
         return [{ type: 'text', text: `${lines.join('\n')}${hidden}` }]
@@ -97,10 +88,7 @@ export function createListTool(service: GuardianService): ToolDefinition {
           state: row.state,
           online: row.online,
           agent_status: row.agentStatus,
-          heartbeat_count: row.heartbeatCount,
-          action_count: row.actionCount,
-          ...row.lastHeartbeatAt === undefined ? {} : { last_heartbeat_at: row.lastHeartbeatAt },
-          ...row.lastActionAt === undefined ? {} : { last_action_at: row.lastActionAt },
+          created_at: row.createdAt,
           ...row.note === undefined ? {} : { note: row.note },
         })),
         omitted: result.omitted,

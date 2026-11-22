@@ -5,20 +5,19 @@
  * 的事件类型，插件自定义事件写进去会被恢复读路径拒绝。账本格式：
  *
  * ```text
- * {"op":"put","record":{"sessionId":…,"state":…,"actionCount":…}}
+ * {"op":"put","record":{"sessionId":…,"state":…,"note":…}}
  * {"op":"remove","sessionId":…}
  * ```
  *
  * `put` 与 `remove` 都是「最后一次生效」：读取时按 sessionId 折叠，后写的覆盖
- * 先写的。因此状态变化、动作计数都不需要额外的 op——每次变化写一条完整的
- * `put` 即可。
+ * 先写的。因此状态变化不需要额外的 op——每次变化写一条完整的 `put` 即可。
  *
  * 文件原语统一处理三件容易被单点实现忽略的事：
  * 1. append 前保证上一行以 `\n` 收尾——崩溃留下的半行若直接与下一条记录拼接，
  *    会得到一条非法 JSON，`forEach` 会同时丢掉两条记录；
  * 2. rewrite 用「临时文件 + fsync + rename」原子替换——直接 `'w'` 截断后重写，
  *    进程中途被杀就丢掉整本账，而这恰好只发生在崩溃恢复路径上；
- * 3. 按 (size, mtime) 缓存文件内容——心跳每轮都要读一次账本，全量
+ * 3. 按 (size, mtime) 缓存文件内容——读取方可能反复折叠同一本账，全量
  *    `readFileSync` + 逐行 JSON.parse 会把事件循环卡在同步 I/O 上。
  *
  * 账本是文件边界，读回来的一律重新校验：文件可能被外部编辑过，也可能因为崩溃
@@ -149,7 +148,7 @@ class JsonlLedgerFile {
   /**
    * 读取全部原始文本；文件不存在时返回空串。
    *
-   * 命中缓存时（size 与 mtime 都没变）不再读盘：账本几乎每次心跳都会被查询。
+   * 命中缓存时（size 与 mtime 都没变）不再读盘：读取方可能连续折叠同一本账。
    * @returns 文件内容。
    */
   read(): string {
@@ -289,27 +288,5 @@ function recordOf(value: unknown): WatchRecord | undefined {
     updatedAt,
     state: state as WatchState,
     note: typeof raw['note'] === 'string' ? raw['note'] : undefined,
-    heartbeatCount: countOf(raw['heartbeatCount']),
-    actionCount: countOf(raw['actionCount']),
-    lastHeartbeatAt: optionalTimestamp(raw['lastHeartbeatAt']),
-    lastActionAt: optionalTimestamp(raw['lastActionAt']),
   }
-}
-
-/**
- * 读取一个可选的时间戳字段。
- * @param value - 原始值。
- * @returns 合法的时间戳；缺省或非法时 undefined。
- */
-function optionalTimestamp(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
-}
-
-/**
- * 读取一个计数字段。
- * @param value - 原始值。
- * @returns 合法的计数；缺省或非法时 0。
- */
-function countOf(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
 }

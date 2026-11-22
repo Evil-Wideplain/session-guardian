@@ -44,16 +44,28 @@ export interface SurfaceNodeView {
   readonly roundAnchor: boolean
 }
 
+/** 一个策略值：普通值，或每次决策时重新读取的取器（热更新字段）。 */
+export type TrimPolicyValue<T> = T | (() => T)
+
+/**
+ * 读取策略值。
+ * @param value - 普通值或取器。
+ * @returns 当前值。
+ */
+export function readPolicy<T>(value: TrimPolicyValue<T>): T {
+  return typeof value === 'function' ? (value as () => T)() : value
+}
+
 /** 裁剪策略（部署参数）。 */
 export interface TrimPolicy {
   /** 空闲多久之后才认为缓存已经冷了。 */
-  readonly idleMs: number
+  readonly idleMs: TrimPolicyValue<number>
   /** 保留最近多少轮（以用户消息为锚）；0 表示不保留。 */
-  readonly retainRounds: number
+  readonly retainRounds: TrimPolicyValue<number>
   /** 少于这么多 token 的裁剪不值得做（检查点与固定提示本身也有成本）。 */
-  readonly minShadowTokens: number
+  readonly minShadowTokens: TrimPolicyValue<number>
   /** 检索工具不在场时是否跳过裁剪。 */
-  readonly requireRetrieval: boolean
+  readonly requireRetrieval: TrimPolicyValue<boolean>
 }
 
 /** 一次可执行的裁剪：被遮蔽的区间与保留的尾部。 */

@@ -18,7 +18,7 @@ import { defaultStateDir, JsonlWatchRepository } from './infrastructure/watch-le
 
 /** 装配好的运行时。 */
 export interface GuardianRuntime {
-  /** 看护应用服务（工具与心跳入口）。 */
+  /** 看护应用服务（工具入口）。 */
   readonly guardian: GuardianService
   /** 账本目录（诊断/测试用）。 */
   readonly stateDir: string

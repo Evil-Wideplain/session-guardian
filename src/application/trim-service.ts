@@ -16,7 +16,7 @@
  */
 
 import type { TrimPolicy } from '../domain/trim.ts'
-import { isIdle, selectShadowRange } from '../domain/trim.ts'
+import { isIdle, readPolicy, selectShadowRange } from '../domain/trim.ts'
 import {
   lastSurfaceEventTime,
   readSurfaceView,
@@ -73,7 +73,7 @@ export class TrimService {
       return { trimmed: false, reason: 'unavailable' }
     }
     // 没有检索工具时裁剪等于把历史藏起来却取不回；默认直接跳过。
-    if (this.dependencies.policy.requireRetrieval && !this.dependencies.retrieval()) {
+    if (readPolicy(this.dependencies.policy.requireRetrieval) && !this.dependencies.retrieval()) {
       return { trimmed: false, reason: 'no-retrieval' }
     }
 
@@ -82,7 +82,7 @@ export class TrimService {
     const now = this.dependencies.now()
     const lastEventTime = lastSurfaceEventTime(agent.session)
     if (lastEventTime === undefined) return { trimmed: false, reason: 'empty' }
-    if (!isIdle(lastEventTime, now, this.dependencies.policy.idleMs)) {
+    if (!isIdle(lastEventTime, now, readPolicy(this.dependencies.policy.idleMs))) {
       return { trimmed: false, reason: 'not-due' }
     }
 
@@ -92,8 +92,8 @@ export class TrimService {
     const view = readSurfaceView(agent.session, measurement)
     const selection = selectShadowRange(
       view,
-      this.dependencies.policy.retainRounds,
-      this.dependencies.policy.minShadowTokens,
+      readPolicy(this.dependencies.policy.retainRounds),
+      readPolicy(this.dependencies.policy.minShadowTokens),
     )
     if (selection === null) return { trimmed: false, reason: 'not-due' }
 

@@ -410,20 +410,6 @@ export interface SessionsService {
   flush(session: Session): Promise<boolean>
 }
 
-/**
- * 计时器服务切片（可选）。
- *
- * DSH 的基础 bundle 里有 `timer` 行（`@deepseek-ai/cordis-plugin-timer`），
- * 提供 `timeout` / `interval` / `throttle` / `debounce`。插件优先用它而不是
- * 自己开 `setInterval`：宿主停用插件时定时器会随之被收回。
- */
-export interface TimerService {
-  /** 反复执行回调；返回注销函数。 */
-  interval(callback: () => void, delay: number): () => void
-  /** 延时执行回调；返回注销函数。 */
-  timeout(callback: () => void, delay: number): () => void
-}
-
 // ---------------------------------------------------------------------------
 // Cordis 上下文与事件增补
 // ---------------------------------------------------------------------------
@@ -444,8 +430,6 @@ declare module '@deepseek-ai/cordis' {
     tokenMeter?: TokenMeterService
     /** 会话检索服务（可选；`dsh-experimental-session-search` 组合包提供）。 */
     sessionQuery?: unknown
-    /** 计时器（可选；基础 bundle 的 `timer` 行提供）。 */
-    timer?: TimerService
   }
 
   interface Events {

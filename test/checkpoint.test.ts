@@ -36,4 +36,35 @@ describe('buildCheckpointNotice', () => {
     const text = buildCheckpointNotice(INPUT)
     expect(text).not.toContain('session_event_search')
   })
+
+  it('配置模板可覆盖正文并展开区间占位符', () => {
+    const text = buildCheckpointNotice(INPUT, {
+      retrieval: true,
+      template: '会话 {sessionId}：{start}-{end}，移出 {shadowedTokens} token。\n{retrievalGuide}',
+    })
+    expect(text).toContain('会话 s-1：12-87，移出 18400 token。')
+    expect(text).toContain('session_event_search')
+    expect(text).not.toContain('[context-trim]')
+  })
+
+  it('模板不写 retrievalGuide 时不自动插入检索说明', () => {
+    const text = buildCheckpointNotice(INPUT, {
+      retrieval: true,
+      template: '已裁 {shadowedTokens} token',
+    })
+    expect(text).toBe('已裁 18400 token')
+  })
+
+  it('retrievalGuide 按检索能力展开', () => {
+    const withTool = buildCheckpointNotice(INPUT, { retrieval: true, template: '{retrievalGuide}' })
+    const withoutTool = buildCheckpointNotice(INPUT, { retrieval: false, template: '{retrievalGuide}' })
+    expect(withTool).toContain('session_event_search')
+    expect(withoutTool).toContain('No history-search tool is mounted')
+  })
+
+  it('空白模板回落到默认正文', () => {
+    const text = buildCheckpointNotice(INPUT, { template: '   \n' })
+    expect(text).toBe(buildCheckpointNotice(INPUT))
+    expect(text).toContain('[context-trim]')
+  })
 })

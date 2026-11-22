@@ -6,7 +6,6 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import * as autoContinue from '../src/auto-continue.ts'
 import * as compaction from '../src/compaction.ts'
 import * as main from '../src/index.ts'
 import * as trim from '../src/trim.ts'
@@ -19,10 +18,7 @@ describe('装载行入口', () => {
     expect(typeof main.apply).toBe('function')
   })
 
-  it('续跑行与裁剪行导出各自的 name / inject / apply', () => {
-    expect(autoContinue.name).toBe('session-guardian-auto-continue')
-    expect(typeof autoContinue.apply).toBe('function')
-
+  it('裁剪行导出自己的 name / inject / apply', () => {
     expect(trim.name).toBe('session-guardian-trim')
     expect(trim.Config).toBeDefined()
     // 系统提示词与工具表是常驻检索指引的前提；计量与压缩后端按需取。

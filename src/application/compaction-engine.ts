@@ -41,6 +41,8 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { readConfig } from '../config.ts'
+import type { ConfigValue } from '../config.ts'
 import { CHECKPOINT_KIND, runCompactionTransaction } from './compaction-transaction.ts'
 import type { CheckpointInput } from '../domain/checkpoint.ts'
 import { buildCheckpointNotice } from '../domain/checkpoint.ts'
@@ -63,25 +65,34 @@ import type {
 /** 本后端的配置。 */
 export interface RetrievalCompactionConfig {
   /** 保留最近多少轮（以用户消息为锚）。 */
-  readonly retainRounds?: number
+  readonly retainRounds?: ConfigValue<number>
   /** 少于这么多 token 的裁剪不值得做。 */
-  readonly minShadowTokens?: number
+  readonly minShadowTokens?: ConfigValue<number>
   /** 压力自动压缩的阈值（token）；`0` 表示禁用压力触发，只保留显式与溢出压缩。 */
-  readonly pressureTokens?: number
+  readonly pressureTokens?: ConfigValue<number>
   /** 是否保留保留窗口里的工具调用记录；`false` 时整段移出模型可见历史。 */
-  readonly keepToolRecords?: boolean
+  readonly keepToolRecords?: ConfigValue<boolean>
+  /**
+   * 覆盖检查点正文的模板；空白表示使用默认正文。
+   *
+   * 占位符：`{sessionId}`、`{start}`、`{end}`、`{shadowedTokens}`、
+   * `{retrievalGuide}`。模板产物仍须小于被遮蔽内容，否则事务拒绝提交。
+   */
+  readonly checkpointTemplate?: ConfigValue<string | undefined>
 }
 
 /** {@link RetrievalCompactionConfig} 的运行时 schema。 */
 export const Config = z.object({
-  retainRounds: z.number().step(1).min(0).default(3)
+  retainRounds: z.number().step(1).min(0).default(3).volatile()
     .description('保留最近多少轮（以用户消息为锚）；0 表示不保留。'),
-  minShadowTokens: z.number().step(1).min(0).default(2_000)
+  minShadowTokens: z.number().step(1).min(0).default(2_000).volatile()
     .description('触发裁剪的最小遮蔽量（token）。'),
-  pressureTokens: z.number().step(1).min(0).default(0)
+  pressureTokens: z.number().step(1).min(0).default(0).volatile()
     .description('压力自动压缩阈值（token）；0 表示禁用，只保留显式与溢出压缩。'),
-  keepToolRecords: z.boolean().default(true)
+  keepToolRecords: z.boolean().default(true).volatile()
     .description('是否保留保留窗口里的工具调用记录；false 时整段移出模型可见历史。'),
+  checkpointTemplate: z.string().volatile()
+    .description('覆盖检查点正文的模板；支持 {sessionId}/{start}/{end}/{shadowedTokens}/{retrievalGuide}，空白表示默认正文。'),
 }) as unknown as z<RetrievalCompactionConfig>
 
 /**
@@ -95,14 +106,8 @@ export class RetrievalCompactionEngine implements CompactionService {
   /** 插件上下文；`tokenMeter` / `tools` / `logger` 都从这里取。 */
   protected readonly ctx: Context
 
-  /** 保留的轮次数。 */
-  protected readonly retainRounds: number
-  /** 触发裁剪的最小遮蔽量。 */
-  protected readonly minShadowTokens: number
-  /** 压力触发阈值；`0` 表示禁用。 */
-  protected readonly pressureTokens: number
-  /** 是否保留保留窗口里的工具调用记录。 */
-  protected readonly keepToolRecords: boolean
+  /** 部署配置；热更新字段保留引用，每次使用时读取当前值。 */
+  protected readonly config: RetrievalCompactionConfig
 
   /**
    * 建立后端并登记为 `ctx.compaction`。
@@ -111,10 +116,33 @@ export class RetrievalCompactionEngine implements CompactionService {
    */
   constructor(ctx: Context, config: RetrievalCompactionConfig = {}) {
     this.ctx = ctx
-    this.retainRounds = config.retainRounds ?? 3
-    this.minShadowTokens = config.minShadowTokens ?? 2_000
-    this.pressureTokens = config.pressureTokens ?? 0
-    this.keepToolRecords = config.keepToolRecords ?? true
+    this.config = config
+  }
+
+  /** 当前保留轮数。 */
+  private get retainRounds(): number {
+    return readConfig(this.config.retainRounds, 3)
+  }
+
+  /** 当前最小遮蔽量。 */
+  private get minShadowTokens(): number {
+    return readConfig(this.config.minShadowTokens, 2_000)
+  }
+
+  /** 当前压力阈值。 */
+  private get pressureTokens(): number {
+    return readConfig(this.config.pressureTokens, 0)
+  }
+
+  /** 当前是否保留工具交换。 */
+  private get keepToolRecords(): boolean {
+    return readConfig(this.config.keepToolRecords, true)
+  }
+
+  /** 当前正文模板；空白按未配置处理。 */
+  private get checkpointTemplate(): string | undefined {
+    const template = readConfig<string | undefined>(this.config.checkpointTemplate, undefined)
+    return template !== undefined && template.trim() !== '' ? template : undefined
   }
 
   /** 计量服务；`static inject` 保证它在场，这里把可选声明收窄成非空。 */
@@ -144,9 +172,10 @@ export class RetrievalCompactionEngine implements CompactionService {
     signal.throwIfAborted()
     const session = agent.session
     if (session.requestHeader() === undefined) return null
-    if (trigger === 'pressure' && this.pressureTokens <= 0) return null
+    const pressureTokens = this.pressureTokens
+    if (trigger === 'pressure' && pressureTokens <= 0) return null
     const measurement = this.meter.measure(session)
-    if (trigger === 'pressure' && measurement.totalTokens < this.pressureTokens) return null
+    if (trigger === 'pressure' && measurement.totalTokens < pressureTokens) return null
     const retain = trigger === 'context-overflow' ? 1 : this.retainRounds
     const minimum = trigger === 'context-overflow' ? 1 : this.minShadowTokens
     const selection = this.selectRange(session, measurement, retain, minimum)
@@ -245,10 +274,12 @@ export class RetrievalCompactionEngine implements CompactionService {
    * @returns 检查点内容块。
    */
   protected buildCheckpoint(input: CheckpointInput): readonly ContentBlock[] {
+    const template = this.checkpointTemplate
     return [{
       type: 'text',
       text: buildCheckpointNotice(input, {
         retrieval: this.retrievalAvailable(),
+        ...template === undefined ? {} : { template },
       }),
     }]
   }

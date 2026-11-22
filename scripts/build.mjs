@@ -27,3 +27,6 @@ execFileSync(
 // 纯类型模块会产出一个只剩文件注释的空壳 JS；没有任何运行时 import 指向它，
 // 删掉以免被误当成可加载的入口。
 rmSync(join(root, 'lib', 'types.js'), { force: true })
+
+// 客户端半边是手写脚本，不在 tsc 的 include 里；至少把语法错误挡在发布之前。
+execFileSync(process.execPath, ['--check', join(root, 'client.js')], { cwd: root, stdio: 'inherit' })

@@ -54,7 +54,7 @@ export const inject = ['systemPrompt', 'tools']
  */
 export function apply(ctx: Context, config: TrimConfig): void {
   const resolved = resolveTrimConfig(config)
-  if (!resolved.enabled) return
+  if (!resolved.enabled()) return
 
   registerRetrievalGuide(ctx)
 

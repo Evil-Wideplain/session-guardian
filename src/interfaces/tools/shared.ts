@@ -87,10 +87,11 @@ export function callerOf(exec: ToolExecution, tool: string): Caller {
   return { sessionId: agent.id, cwd: agent.session.header.cwd ?? '' }
 }
 
-/** 把 Unix 毫秒格式化成 `HH:mm:ss`；非法时间返回 `—`。 */
-export function clockText(time: number | undefined): string {
+/** 把 Unix 毫秒格式化成 `YYYY-MM-DD HH:mm`（本地时区）；非法时间返回 `—`。 */
+export function timestampText(time: number | undefined): string {
   if (time === undefined || !Number.isFinite(time)) return '—'
   const date = new Date(time)
   const pad = (value: number): string => String(value).padStart(2, '0')
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    + ` ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }

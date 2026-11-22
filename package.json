@@ -1,7 +1,7 @@
 {
   "name": "session-guardian",
-  "version": "0.1.0",
-  "description": "DSH (DeepSeek Harness) plugin for long-running agent sessions: a watch registry that keeps sessions alive, heartbeats, automatic continuation after a turn ends, crash recovery with a durable ledger, and context trimming (with a retrieval-based checkpoint backend) when you return to an idle session.",
+  "version": "0.4.0",
+  "description": "DSH (DeepSeek Harness) plugin for long-running agent sessions: a durable watch registry with watch/unwatch/list tools, crash recovery from a JSONL ledger, and context trimming (with a retrieval-based checkpoint backend) when you return to an idle session.",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -9,10 +9,6 @@
     ".": {
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
-    },
-    "./auto-continue": {
-      "types": "./lib/types/auto-continue.d.ts",
-      "default": "./lib/auto-continue.js"
     },
     "./trim": {
       "types": "./lib/types/trim.d.ts",
@@ -22,11 +18,17 @@
       "types": "./lib/types/compaction.d.ts",
       "default": "./lib/compaction.js"
     },
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./trim/locale/*.json": "./locale/trim/*.json",
+    "./compaction/locale/*.json": "./locale/compaction/*.json",
     "./package.json": "./package.json"
   },
   "files": [
     "lib/**/*.js",
     "lib/types/**/*.d.ts",
+    "client.js",
+    "locale/**/*.json",
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
@@ -39,6 +41,15 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
     }
   },
   "scripts": {
@@ -55,10 +66,8 @@
     "deepseek-harness",
     "ai-agents",
     "long-running-agent",
-    "keep-alive",
-    "auto-continue",
     "session-management",
-    "heartbeat",
+    "session-registry",
     "cordis",
     "typescript",
     "nodejs"

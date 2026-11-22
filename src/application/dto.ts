@@ -22,14 +22,6 @@ export interface WatchRow {
   readonly online: boolean
   /** Agent 当前状态；离线时为 `offline`。 */
   readonly agentStatus: 'idle' | 'running' | 'offline'
-  /** 已心跳次数。 */
-  readonly heartbeatCount: number
-  /** 插件对这条看护做过多少次动作。 */
-  readonly actionCount: number
-  /** 最近一次心跳时刻（Unix 毫秒）。 */
-  readonly lastHeartbeatAt: number | undefined
-  /** 最近一次动作时刻（Unix 毫秒）。 */
-  readonly lastActionAt: number | undefined
   /** 备注。 */
   readonly note: string | undefined
   /** 登记看护的时刻（Unix 毫秒）。 */

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session guardian",
+    "description": "A cross-session watch registry plus context trimming when you return to an old session."
+  }
+}
