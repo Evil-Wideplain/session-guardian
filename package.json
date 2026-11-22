@@ -1,0 +1,84 @@
+{
+  "name": "session-guardian",
+  "version": "0.1.0",
+  "description": "DSH (DeepSeek Harness) plugin for long-running agent sessions: a watch registry that keeps sessions alive, heartbeats, automatic continuation after a turn ends, crash recovery with a durable ledger, and context trimming (with a retrieval-based checkpoint backend) when you return to an idle session.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./auto-continue": {
+      "types": "./lib/types/auto-continue.d.ts",
+      "default": "./lib/auto-continue.js"
+    },
+    "./trim": {
+      "types": "./lib/types/trim.d.ts",
+      "default": "./lib/trim.js"
+    },
+    "./compaction": {
+      "types": "./lib/types/compaction.d.ts",
+      "default": "./lib/compaction.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/types/**/*.d.ts",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.2-rc.3"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek",
+    "deepseek-harness",
+    "ai-agents",
+    "long-running-agent",
+    "keep-alive",
+    "auto-continue",
+    "session-management",
+    "heartbeat",
+    "cordis",
+    "typescript",
+    "nodejs"
+  ],
+  "author": "DSH contributors",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.5"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@types/node": "^22.20.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

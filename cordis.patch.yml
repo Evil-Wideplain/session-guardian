@@ -1,0 +1,45 @@
+# 一个插件包拆成四个装载行（组件），可分别启停：
+# - 主行 session-guardian：装配看护运行时，提供 sessionGuardian 服务，
+#   注册 watch/unwatch/list 三个工具与启动恢复钩子；
+# - 自动续跑行 session-guardian/auto-continue（包子路径入口）：注入主行的服务，
+#   只负责「回合结束后自动续跑」。关掉它只少这一个能力；
+# - 上下文裁剪行 session-guardian/trim：回到旧会话时保留最近 N 轮，把更早的
+#   历史裁掉。它消费 ctx.compaction，与后端无关；检索提示有两个载体：检查点
+#   正文与常驻系统提示词；
+# - 会话事件检索组 session-guardian-session-query：裁剪的前置能力，随插件一起
+#   装载会话检索工具（全局工具层）；
+# - 检索式压缩后端 session-guardian/compaction：提供 ctx.compaction，用
+#   「固定说明 + 检索指针」代替模型摘要；keepToolRecords=false 时还会把保留
+#   窗口里的工具交换整段移出模型可见历史。一个上下文只能有一个压缩后端，所以
+#   这一行默认停用：要用它，先停用基础 bundle 里的 @deepseek-ai/dsh-compaction-basic。
+- insert:
+    - id: session-guardian
+      name: session-guardian
+
+    - id: session-guardian-auto-continue
+      name: session-guardian/auto-continue
+
+    # 检索能力：裁剪把历史移出上下文后，模型必须能把它取回来。这一组随插件一起
+    # 装载会话事件检索（全局工具层），不依赖用户另外启用实验性 bundle。
+    # 注意：不要再同时启用 @deepseek-ai/dsh-experimental-session-search，否则同名
+    # 工具会被注册两次。
+    - id: session-guardian-session-query
+      name: cordis:group
+      group: true
+      isolate:
+        sessionQuery: true
+      config:
+        - id: session-guardian-session-query-sqlite
+          name: '@deepseek-ai/dsh-session-query-sqlite'
+          config:
+            path: ':memory:'
+            openAt: first-search
+        - id: session-guardian-tool-session-query
+          name: '@deepseek-ai/dsh-tool-session-query'
+
+    - id: session-guardian-trim
+      name: session-guardian/trim
+
+    - id: session-guardian-compaction
+      name: session-guardian/compaction
+      disabled: true
